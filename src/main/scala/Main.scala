@@ -1,77 +1,121 @@
 package assignment2
 
-import com.github.tototoshi.csv._
-import java.io._
+import com.github.tototoshi.csv.*
+import java.io.*
 
-object Main extends App {
+//booking class
+case class Booking( bookingId: String,
+                    dateOfBooking: String,
+                    time: String,
+                    customerId: String,
+                    gender: String,
+                    age: Int,
+                    originCountry: String,
+                    state: String,
+                    location: String,
+                    destinationCountry: String,
+                    destinationCity: String,
+                    noOfPeople: Int,
+                    checkInDate: String,
+                    noOfDays: Int,
+                    checkOutDate: String,
+                    rooms: Int,
+                    hotelName: String,
+                    hotelRating: Double,
+                    paymentMode: String,
+                    bankName: String,
+                    bookingPriceSGD: Double,
+                    discount: Double,
+                    gst: Double,
+                    profitMargin: Double
+                  )
+//trait for loading bookings (to change data source easily)
+trait BookingDataSource:
+  def loadBookings(): Seq[Booking]
+
+//csv reader that does the data loading behaviour
+class CsvBookingDataSource(filePath: String) extends BookingDataSource:
+  private def parsePercentToFraction(s: String): Double =
+    val cleaned = s.trim.stripSuffix("%").trim
+    if cleaned.isEmpty then 0.0
+    else
+      try cleaned.toDouble / 100.0
+      catch {
+        case _: NumberFormatException => 0.0
+      }
+  def loadBookings(): Seq[Booking] =
+    try
+      val csvReader = CSVReader.open(new File(filePath))
+      try
+        val rows: List[Map[String, String]] = csvReader.allWithHeaders()
+
+        val bookings: List[Booking] = rows.map { row =>
+          Booking(
+            bookingId = row("Booking ID"),
+            dateOfBooking = row("Date of Booking"),
+            time = row("Time"),
+            customerId = row("Customer ID"),
+            gender = row("Gender"),
+            age = row("Age").toInt,
+            originCountry = row("Origin Country"),
+            state = row("State"),
+            location = row("Location"),
+            destinationCountry = row("Destination Country"),
+            destinationCity = row("Destination City"),
+            noOfPeople = row("No. Of People").toInt,
+            checkInDate = row("Check-in date"),
+            noOfDays = row("No of Days").toInt,
+            checkOutDate = row("Check-Out Date"),
+            rooms = row("Rooms").toInt,
+            hotelName = row("Hotel Name"),
+            hotelRating = row("Hotel Rating").toDouble,
+            paymentMode = row("Payment Mode"),
+            bankName = row("Bank Name"),
+            bookingPriceSGD = row("Booking Price[SGD]").toDouble,
+            discount = parsePercentToFraction(row("Discount")),
+            gst = row("GST").toDouble,
+            profitMargin = row("Profit Margin").toDouble
+          )
+        }
+        bookings
+      finally
+        csvReader.close()
+    catch
+      case e: Exception =>
+        println("Error reading file: " + e.getMessage)
+        Seq.empty[Booking]
+
+//common behaviour of the analysis question
+trait AnalysisQuestion[Q]:
+  def name: String
+  def compute(bookings: Seq[Booking]): Q
+  def printResult(result: Q): Unit
+
+//to store the data we need
+case class CountryBookingResult()
+case class HotelEconomyResult()
+case class HotelProfitResult()
+//analysis classes
+class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]
+class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]
+class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
+
+
+object Main extends App:
   val filePath = "data/Hotel_Dataset.csv"
+  val dataSource: BookingDataSource = CsvBookingDataSource(filePath)
+  val bookings = dataSource.loadBookings()
+  println(s"Loaded ${bookings.size} bookings.")
 
-  // Use the CSV reader to read the file
-  try {
-    val csvReader = CSVReader.open(new File(filePath))
-    val lines: List[List[String]] = csvReader.all() // This returns all rows as lists of strings
+  val questions = Seq(
+    MostBookedCountryQuestion(),
+    MostEconomicalHotelQuestion(),
+    MostProfitableHotelQuestion(),
+  )
 
-    // Manually convert the list of lists into a list of maps
-    val bookingLines: List[Map[String, String]] = lines.map { line =>
-      Map(
-        "Booking ID" -> line(0),
-        "Date of Booking" -> line(1),
-        "Time" -> line(2),
-        "Customer ID" -> line(3),
-        "Gender" -> line(4),
-        "Age" -> line(5).toInt.toString,
-        "Origin Country" -> line(6),
-        "State" -> line(7),
-        "Location" -> line(8),
-        "Destination Country" -> line(9),
-        "Destination City" -> line(10),
-        "No. Of People" -> line(11).toInt.toString,
-        "Check-in date" -> line(12),
-        "No of Days" -> line(13).toInt.toString,
-        "Check-Out Date" -> line(14),
-        "Rooms" -> line(15).toInt.toString,
-        "Hotel Name" -> line(16),
-        "Hotel Rating" -> line(17).toDouble.toString,
-        "Payment Mode" -> line(20),
-        "Bank Name" -> line(18),
-        "Booking Price[SGD]" -> line(19).toDouble.toString,
-        "Discount" -> 0.0.toString, // Assuming no discount by default until specified otherwise
-        "GST" -> 0.0.toString,      // Assuming GST is not provided in the dataset initially
-        "Profit Margin" -> 0.0.toString // Similarly assuming no profit margin initially
-      )
-    }
-
-    for (line <- bookingLines) {
-      println(assignment2.Booking(
-        bookingId = line("Booking ID"),
-        dateOfBooking = line("Date of Booking"),
-        time = line("Time"),
-        customerId = line("Customer ID"),
-        gender = line("Gender"),
-        age = line("Age").toInt,
-        originCountry = line("Origin Country"),
-        state = line("State"),
-        location = line("Location"),
-        destinationCountry = line("Destination Country"),
-        destinationCity = line("Destination City"),
-        noOfPeople = line("No. Of People").toInt,
-        checkInDate = line("Check-in date"),
-        noOfDays = line("No of Days").toInt,
-        checkOutDate = line("Check-Out Date"),
-        rooms = line("Rooms").toInt,
-        hotelName = line("Hotel Name"),
-        hotelRating = line("Hotel Rating").toDouble,
-        paymentMode = line("Payment Mode"),
-        bankName = line("Bank Name"),
-        bookingPriceSGD = line("Booking Price[SGD]").toDouble,
-        discount = line("Discount").toDouble,
-        gst = line("GST").toDouble,
-        profitMargin = line("Profit Margin").toDouble
-      ))
-    }
-
-    csvReader.close()
-  } catch {
-    case e: Exception => println("Error reading file: " + e.getMessage)
+  for (q <- questions){
+    val result = q.compute(bookings)
+    q.printResult(result)
   }
-}
+
+
