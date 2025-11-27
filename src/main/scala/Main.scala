@@ -92,11 +92,24 @@ trait AnalysisQuestion[Q]:
   def printResult(result: Q): Unit
 
 //to store the data we need
-case class CountryBookingResult()
+case class CountryBookingResult(
+                               country: String,
+                               bookingCount: Int
+                               )
+
 case class HotelEconomyResult()
 case class HotelProfitResult()
 //analysis classes
-class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]
+class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
+  override val name: String = "Most Booked Country"
+  override def compute(bookings: Seq[Booking]): CountryBookingResult =
+    val grouped: Map[String, Seq[Booking]] = bookings.groupBy(_.originCountry)
+    val (country, bookingsForCountry) =
+      grouped.maxBy{case(_, bs) => bs.size}
+    CountryBookingResult(country, bookingsForCountry.size)
+  override def printResult(result: CountryBookingResult): Unit =
+    println(s"1. Country with highest number of bookings: ${result.country} with ${result.bookingCount} bookings")
+
 class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]
 class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
 
