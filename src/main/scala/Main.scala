@@ -110,8 +110,8 @@ class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
   override def printResult(result: CountryBookingResult): Unit =
     println(s"1. Country with highest number of bookings: ${result.country} with ${result.bookingCount} bookings")
 
-class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]
-class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
+//class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]
+//class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
 
 
 object Main extends App:
@@ -122,8 +122,8 @@ object Main extends App:
 
   val questions = Seq(
     MostBookedCountryQuestion(),
-    MostEconomicalHotelQuestion(),
-    MostProfitableHotelQuestion(),
+    //MostEconomicalHotelQuestion(),
+    //MostProfitableHotelQuestion(),
   )
 
   for (q <- questions){
