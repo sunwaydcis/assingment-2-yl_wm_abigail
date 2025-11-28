@@ -99,6 +99,8 @@ case class CountryBookingResult(
 
 case class HotelEconomyResult(
                              hotelName: String,
+                             destinationCountry: String,
+                             destinationCity: String,
                              averageEconomicalScore: Double
                              )
 case class HotelProfitResult()
@@ -116,21 +118,22 @@ class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
 class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
   override val name: String = "Most Economical Hotel"
   override def compute(bookings: Seq[Booking]): HotelEconomyResult =
-    val groupByHotel: Map[String, Seq[Booking]] = bookings.groupBy(_.hotelName)
-    val hotelAvgPrice: Map[String, Double]=
-      groupByHotel.map{case(hotelName, bs) =>
+    val groupByHotel: Map[(String, String, String), Seq[Booking]] =
+      bookings.groupBy(b => (b.hotelName, b.destinationCountry, b.destinationCity))
+    val hotelAvgPrice: Map[(String, String, String), Double]=
+      groupByHotel.map {case ((hotelName, destinationCountry, destinationCity), bs) =>
         val scores = bs.map { b =>
           val discountedPrice = b.bookingPriceSGD * (1.0 - b.discount)
           val economyScore = discountedPrice * (1.0 + b.profitMargin)
           economyScore
         }
         val average = scores.sum / scores.size
-        hotelName -> average
+        (hotelName, destinationCountry, destinationCity) -> average
       }
-    val (bestHotel, bestScore) = hotelAvgPrice.minBy{case(_,score)=>score}
-    HotelEconomyResult(bestHotel, bestScore)
+    val ((bestHotelName, bestHotelCountry, bestHotelCity), bestScore) = hotelAvgPrice.minBy{case(_,score)=>score}
+    HotelEconomyResult(bestHotelName, bestHotelCountry, bestHotelCity, bestScore)
   override def printResult(result: HotelEconomyResult): Unit =
-    println(f"2. Most Economical Hotel: ${result.hotelName} with average ${result.averageEconomicalScore}%.2f score")
+    println(f"2. Most Economical Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity} with average ${result.averageEconomicalScore}%.2f score")
 
 //class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
 
