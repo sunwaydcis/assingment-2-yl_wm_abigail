@@ -130,7 +130,7 @@ class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
     val (bestHotel, bestScore) = hotelAvgPrice.minBy{case(_,score)=>score}
     HotelEconomyResult(bestHotel, bestScore)
   override def printResult(result: HotelEconomyResult): Unit =
-    println(s"2. Most Economical Hotel: ${result.hotelName} with average ${result.averageEconomicalScore}%.2f score")
+    println(f"2. Most Economical Hotel: ${result.hotelName} with average ${result.averageEconomicalScore}%.2f score")
 
 //class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
 
