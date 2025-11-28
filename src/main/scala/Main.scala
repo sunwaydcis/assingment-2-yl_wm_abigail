@@ -103,7 +103,13 @@ case class HotelEconomyResult(
                              destinationCity: String,
                              averageEconomicalScore: Double
                              )
-case class HotelProfitResult()
+case class HotelProfitResult(
+                            hotelName: String,
+                            destinationCountry: String,
+                            destinationCity: String,
+                            totalHotelProfit: Double,
+                            totalHotelVisitors: Int
+                            )
 //analysis classes
 class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
   override val name: String = "Most Booked Country"
