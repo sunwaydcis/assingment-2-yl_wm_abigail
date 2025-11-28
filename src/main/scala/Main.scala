@@ -97,7 +97,10 @@ case class CountryBookingResult(
                                bookingCount: Int
                                )
 
-case class HotelEconomyResult()
+case class HotelEconomyResult(
+                             hotelName: String,
+                             averageEconomicalScore: Double
+                             )
 case class HotelProfitResult()
 //analysis classes
 class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
@@ -110,7 +113,25 @@ class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
   override def printResult(result: CountryBookingResult): Unit =
     println(s"1. Country with highest number of bookings: ${result.country} with ${result.bookingCount} bookings")
 
-//class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]
+class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
+  override val name: String = "Most Economical Hotel"
+  override def compute(bookings: Seq[Booking]): HotelEconomyResult =
+    val groupByHotel: Map[String, Seq[Booking]] = bookings.groupBy(_.hotelName)
+    val hotelAvgPrice: Map[String, Double]=
+      groupByHotel.map{case(hotelName, bs) =>
+        val scores = bs.map { b =>
+          val discountedPrice = b.bookingPriceSGD * (1.0 - b.discount)
+          val economyScore = discountedPrice * (1.0 + b.profitMargin)
+          economyScore
+        }
+        val average = scores.sum / scores.size
+        hotelName -> average
+      }
+    val (bestHotel, bestScore) = hotelAvgPrice.minBy{case(_,score)=>score}
+    HotelEconomyResult(bestHotel, bestScore)
+  override def printResult(result: HotelEconomyResult): Unit =
+    println(s"2. Most Economical Hotel: ${result.hotelName} with average ${result.averageEconomicalScore}%.2f score")
+
 //class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
 
 
