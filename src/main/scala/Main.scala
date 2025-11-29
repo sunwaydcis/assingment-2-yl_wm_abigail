@@ -141,8 +141,26 @@ class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
   override def printResult(result: HotelEconomyResult): Unit =
     println(f"2. Most Economical Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity} with average ${result.averageEconomicalScore}%.2f score")
 
-//class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]
-
+class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]:
+  override val name: String = "Most Profitable Hotel"
+  override def compute(bookings: Seq[Booking]): HotelProfitResult =
+    val groupByHotel: Map[(String, String, String), Seq[Booking]]=
+      bookings.groupBy(b => (b.hotelName, b.destinationCountry, b.destinationCity))
+    val hotelProfit: Map[(String, String, String), (Double, Int)]=
+      groupByHotel.map { case ((hotelName, country, city), bs)=>
+        val totalHotelProfit = bs.map {b =>
+          val discountedPrice = b.bookingPriceSGD * (1.0 - b.discount)
+          val profitPerBooking = discountedPrice * b.profitMargin
+          profitPerBooking}.sum
+        val totalHotelVisitors = bs.map(_.noOfPeople).sum
+        (hotelName, country, city) -> (totalHotelProfit, totalHotelVisitors)
+      }
+    val ((bestHotelName, bestCountry, bestCity), (bestProfit, bestVisitors))=
+      hotelProfit.maxBy {case(_, (totalHotelProfit,_))=> totalHotelProfit}
+    HotelProfitResult(bestHotelName, bestCountry, bestCity, bestProfit, bestVisitors)
+  override def printResult(result: HotelProfitResult): Unit =
+    println(f" 3.Most Profitable Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity}" +
+      f" with a total profit of ${result.totalHotelProfit}%.2f with ${result.totalHotelVisitors} visitors")
 
 object Main extends App:
   val filePath = "data/Hotel_Dataset.csv"
