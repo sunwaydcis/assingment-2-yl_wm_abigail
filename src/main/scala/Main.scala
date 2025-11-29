@@ -171,7 +171,7 @@ object Main extends App:
   val questions = Seq(
     MostBookedCountryQuestion(),
     MostEconomicalHotelQuestion(),
-    //MostProfitableHotelQuestion(),
+    MostProfitableHotelQuestion(),
   )
 
   for (q <- questions){
