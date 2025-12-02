@@ -114,32 +114,66 @@ case class HotelProfitResult(
 class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
   override val name: String = "Most Booked Country"
   override def compute(bookings: Seq[Booking]): CountryBookingResult =
-    val grouped: Map[String, Seq[Booking]] = bookings.groupBy(_.originCountry)
+    val grouped: Map[String, Seq[Booking]] = bookings.groupBy(_.destinationCountry)
     val (country, bookingsForCountry) =
       grouped.maxBy{case(_, bs) => bs.size}
     CountryBookingResult(country, bookingsForCountry.size)
   override def printResult(result: CountryBookingResult): Unit =
     println(s"1. Country with highest number of bookings: ${result.country} with ${result.bookingCount} bookings")
 
-class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
+case class MostEconomicalHotelResult(
+                                      hotelName: String,
+                                      destinationCity: String,
+                                      destinationCountry: String
+                                    )
+
+class MostEconomicalHotelQuestion extends AnalysisQuestion[MostEconomicalHotelResult]:
   override val name: String = "Most Economical Hotel"
-  override def compute(bookings: Seq[Booking]): HotelEconomyResult =
-    val groupByHotel: Map[(String, String, String), Seq[Booking]] =
-      bookings.groupBy(b => (b.hotelName, b.destinationCountry, b.destinationCity))
-    val hotelAvgPrice: Map[(String, String, String), Double]=
-      groupByHotel.map {case ((hotelName, destinationCountry, destinationCity), bs) =>
-        val scores = bs.map { b =>
-          val discountedPrice = b.bookingPriceSGD * (1.0 - b.discount)
-          val economyScore = discountedPrice * (1.0 + b.profitMargin)
-          economyScore
-        }
-        val average = scores.sum / scores.size
-        (hotelName, destinationCountry, destinationCity) -> average
+
+  // convert percentage to double 
+  private def parsePercentToFraction(s: String): Double =
+    val cleaned = s.trim.stripSuffix("%").trim
+    if cleaned.isEmpty then 0.0 else
+      try cleaned.toDouble / 100.0 catch {
+        case _: NumberFormatException => 0.0
       }
-    val ((bestHotelName, bestHotelCountry, bestHotelCity), bestScore) = hotelAvgPrice.minBy{case(_,score)=>score}
-    HotelEconomyResult(bestHotelName, bestHotelCountry, bestHotelCity, bestScore)
-  override def printResult(result: HotelEconomyResult): Unit =
-    println(f"2. Most Economical Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity} with average ${result.averageEconomicalScore}%.2f score")
+
+  //filter hotels with lowest profit margin
+  override def compute(bookings: Seq[Booking]): MostEconomicalHotelResult =
+    val minProfitMargin = bookings.map(_.profitMargin).min
+    val filteredByMinProfitMargin =
+      bookings.filter(_.profitMargin == minProfitMargin)
+
+    // combine with filter for highest discount, convert double to string before parsing fraction
+    val maxDiscount = filteredByMinProfitMargin.map(b => parsePercentToFraction(b.discount.toString)).max
+    val filteredByMaxDiscount =
+      filteredByMinProfitMargin.filter(
+        b => parsePercentToFraction(b.discount.toString) == maxDiscount
+      )
+
+    // based on above filters, find lowest booking price
+    val minBookingPriceSGD =
+      filteredByMaxDiscount.map(_.bookingPriceSGD).min
+
+    // get hotel details based on lowest booking price from prev step
+    val bestHotelDetails =
+      filteredByMaxDiscount.find(
+        _.bookingPriceSGD == minBookingPriceSGD
+      ).get
+
+    MostEconomicalHotelResult(
+      bestHotelDetails.hotelName,
+      bestHotelDetails.destinationCity,
+      bestHotelDetails.destinationCountry
+    )
+
+  override def printResult(result: MostEconomicalHotelResult): Unit = {
+    println(
+      f"2. Most Economical Hotel: ${result.hotelName} in " +
+        s"${result.destinationCity}, ${result.destinationCountry}"
+    )
+  }
+
 
 class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]:
   override val name: String = "Most Profitable Hotel"
@@ -159,7 +193,7 @@ class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]:
       hotelProfit.maxBy {case(_, (totalHotelProfit,_))=> totalHotelProfit}
     HotelProfitResult(bestHotelName, bestCountry, bestCity, bestProfit, bestVisitors)
   override def printResult(result: HotelProfitResult): Unit =
-    println(f" 3.Most Profitable Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity}" +
+    println(f"3.Most Profitable Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity}" +
       f" with a total profit of ${result.totalHotelProfit}%.2f with ${result.totalHotelVisitors} visitors")
 
 object Main extends App:
@@ -178,5 +212,3 @@ object Main extends App:
     val result = q.compute(bookings)
     q.printResult(result)
   }
-
-
