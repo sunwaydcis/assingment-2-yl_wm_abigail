@@ -76,7 +76,8 @@ class CsvBookingDataSource(filePath: String) extends BookingDataSource:
             gst = row("GST").toDouble,
             profitMargin = row("Profit Margin").toDouble
           )
-        }
+        }.distinctBy(_.bookingId)
+        println(s"Removed duplicates: ${rows.size - bookings.size}")
         bookings
       finally
         csvReader.close()
@@ -103,6 +104,7 @@ case class HotelEconomyResult(
                              destinationCity: String,
                              averageEconomicalScore: Double
                              )
+
 case class HotelProfitResult(
                             hotelName: String,
                             destinationCountry: String,
@@ -159,7 +161,7 @@ class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]:
       hotelProfit.maxBy {case(_, (totalHotelProfit,_))=> totalHotelProfit}
     HotelProfitResult(bestHotelName, bestCountry, bestCity, bestProfit, bestVisitors)
   override def printResult(result: HotelProfitResult): Unit =
-    println(f" 3.Most Profitable Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity}" +
+    println(f"3. Most Profitable Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity}" +
       f" with a total profit of ${result.totalHotelProfit}%.2f with ${result.totalHotelVisitors} visitors")
 
 object Main extends App:
