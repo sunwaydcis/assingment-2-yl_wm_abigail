@@ -1,6 +1,8 @@
 package assignment2
 
 import com.github.tototoshi.csv.*
+import scalafx.beans.value
+
 import java.io.*
 
 //booking class
@@ -102,7 +104,7 @@ case class HotelEconomyResult(
                              hotelName: String,
                              destinationCountry: String,
                              destinationCity: String,
-                             averageEconomicalScore: Double
+                             averageRankingScore: Double
                              )
 
 case class HotelProfitResult(
@@ -125,23 +127,41 @@ class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
 
 class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
   override val name: String = "Most Economical Hotel"
+  private case class HotelStats(name: String, country: String, city: String, avgP: Double, avgD: Double, avgR: Double)
+  private def minMax(value: Double, min: Double, max: Double): Double =
+    if max == min then 1.0 else (value - min) / (max - min)
+  private def invert(x: Double): Double = 1.0 - x
   override def compute(bookings: Seq[Booking]): HotelEconomyResult =
-    val groupByHotel: Map[(String, String, String), Seq[Booking]] =
-      bookings.groupBy(b => (b.hotelName, b.destinationCountry, b.destinationCity))
-    val hotelAvgPrice: Map[(String, String, String), Double]=
-      groupByHotel.map {case ((hotelName, destinationCountry, destinationCity), bs) =>
-        val scores = bs.map { b =>
-          val discountedPrice = b.bookingPriceSGD * (1.0 - b.discount)
-          val economyScore = discountedPrice * (1.0 + b.profitMargin)
-          economyScore
-        }
-        val average = scores.sum / scores.size
-        (hotelName, destinationCountry, destinationCity) -> average
+    val grouped = bookings.groupMap(b => (b.hotelName, b.destinationCountry, b.destinationCity)) {b => (b.bookingPriceSGD / b.noOfDays.toDouble / b.rooms.toDouble, b.discount, b.profitMargin)}
+    val statsList: Seq[HotelStats] = grouped.toSeq.map { case ((name, country, city), values) =>
+      val n = values.size
+      val (sumP, sumD, sumR) =
+        values.foldLeft((0.0, 0.0, 0.0)) { case ((sp, sd, sr), (p, d, r)) => (sp + p, sd + d, sr + r) }
+      HotelStats(name, country, city, sumP / n, sumD / n, sumR / n)
+    }
+    if statsList.isEmpty then
+      return HotelEconomyResult("None", "None", "None", Double.PositiveInfinity)
+
+    val (minP, maxP, minD, maxD, minR, maxR) =
+      statsList.foldLeft((Double.PositiveInfinity, Double.NegativeInfinity, Double.PositiveInfinity, Double.NegativeInfinity, Double.PositiveInfinity, Double.NegativeInfinity)) {
+        case ((mnP, mxP, mnD, mxD, mnR, mxR), s) =>
+          (math.min(mnP, s.avgP), math.max(mxP, s.avgP),
+            math.min(mnD, s.avgD), math.max(mxD, s.avgD),
+            math.min(mnR, s.avgR), math.max(mxR, s.avgR))
       }
-    val ((bestHotelName, bestHotelCountry, bestHotelCity), bestScore) = hotelAvgPrice.minBy{case(_,score)=>score}
-    HotelEconomyResult(bestHotelName, bestHotelCountry, bestHotelCity, bestScore)
+
+    val scored: Seq[(HotelStats, Double)] = statsList.map { s =>
+      val pScore = minMax(s.avgP, minP, maxP)
+      val dScore = invert(minMax(s.avgD, minD, maxD))
+      val rScore = minMax(s.avgR, minR, maxR)
+      val finalScore = (pScore + dScore + rScore) / 3.0
+      (s, finalScore)
+    }
+
+    val (bestStat, bestScore) = scored.minBy(_._2)
+    HotelEconomyResult(bestStat.name, bestStat.country, bestStat.city, bestScore)
   override def printResult(result: HotelEconomyResult): Unit =
-    println(f"2. Most Economical Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity} with average ${result.averageEconomicalScore}%.2f score")
+    println(f"2. Most Economical Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity} with average ranking score of ${result.averageRankingScore}%.2f score")
 
 class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]:
   override val name: String = "Most Profitable Hotel"
