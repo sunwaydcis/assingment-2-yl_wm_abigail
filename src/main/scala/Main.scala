@@ -1,8 +1,6 @@
 package assignment2
 
 import com.github.tototoshi.csv.*
-import scalafx.beans.value
-
 import java.io.*
 
 //booking class
@@ -111,8 +109,9 @@ case class HotelProfitResult(
                             hotelName: String,
                             destinationCountry: String,
                             destinationCity: String,
-                            totalHotelProfit: Double,
-                            totalHotelVisitors: Int
+                            totalHotelVisitors: Int,
+                            avgProfitMargin: Double,
+                            finalScore: Double
                             )
 //analysis classes
 class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
@@ -129,7 +128,7 @@ class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
   override val name: String = "Most Economical Hotel"
   private case class HotelStats(name: String, country: String, city: String, avgP: Double, avgD: Double, avgR: Double)
   private def minMax(value: Double, min: Double, max: Double): Double =
-    if max == min then 1.0 else (value - min) / (max - min)
+    if max == min then 0.0 else (value - min) / (max - min)
   private def invert(x: Double): Double = 1.0 - x
   override def compute(bookings: Seq[Booking]): HotelEconomyResult =
     val grouped = bookings.groupMap(b => (b.hotelName, b.destinationCountry, b.destinationCity)) {b => (b.bookingPriceSGD / b.noOfDays.toDouble / b.rooms.toDouble, b.discount, b.profitMargin)}
@@ -165,24 +164,42 @@ class MostEconomicalHotelQuestion extends AnalysisQuestion[HotelEconomyResult]:
 
 class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]:
   override val name: String = "Most Profitable Hotel"
+  private case class Stats(name: String, country: String, city: String, totalVisitors: Int, avgMargin: Double)
+  private def minMax(value: Double, min: Double, max: Double): Double =
+    if max == min then 0.0 else (value - min) / (max - min)
   override def compute(bookings: Seq[Booking]): HotelProfitResult =
-    val groupByHotel: Map[(String, String, String), Seq[Booking]]=
-      bookings.groupBy(b => (b.hotelName, b.destinationCountry, b.destinationCity))
-    val hotelProfit: Map[(String, String, String), (Double, Int)]=
-      groupByHotel.map { case ((hotelName, country, city), bs)=>
-        val totalHotelProfit = bs.map {b =>
-          val discountedPrice = b.bookingPriceSGD * (1.0 - b.discount)
-          val profitPerBooking = discountedPrice * b.profitMargin
-          profitPerBooking}.sum
-        val totalHotelVisitors = bs.map(_.noOfPeople).sum
-        (hotelName, country, city) -> (totalHotelProfit, totalHotelVisitors)
+    val grouped = bookings.groupMap(b => (b.hotelName, b.destinationCountry, b.destinationCity)) { b => (b.noOfPeople.toDouble, b.profitMargin) }
+    val statsList: Seq[Stats] = grouped.toSeq.map { case ((name, country, city), values) =>
+      val bookingCount = values.size
+      val (sumVisitors, sumMargins) =
+        values.foldLeft((0.0, 0.0)) { case ((sv, sm), (v, m)) => (sv + v, sm + m) }
+      val avgMargin = sumMargins / bookingCount.toDouble
+      Stats(name, country, city, sumVisitors.toInt, avgMargin)
+    }
+    if statsList.isEmpty then
+      return HotelProfitResult("None", "None", "None",0, 0.0, Double.NegativeInfinity)
+
+    val (minV, maxV, minM, maxM) =
+      statsList.foldLeft((Double.PositiveInfinity, Double.NegativeInfinity, Double.PositiveInfinity, Double.NegativeInfinity)) {
+        case ((mnV, mxV, mnM, mxM), s) =>
+          (math.min(mnV, s.totalVisitors.toDouble),
+            math.max(mxV, s.totalVisitors.toDouble),
+            math.min(mnM, s.avgMargin),
+            math.max(mxM, s.avgMargin)
+          )
       }
-    val ((bestHotelName, bestCountry, bestCity), (bestProfit, bestVisitors))=
-      hotelProfit.maxBy {case(_, (totalHotelProfit,_))=> totalHotelProfit}
-    HotelProfitResult(bestHotelName, bestCountry, bestCity, bestProfit, bestVisitors)
+    val scored: Seq[(Stats, Double)] = statsList.map { s =>
+      val visitorScore = minMax(s.totalVisitors.toDouble, minV, maxV)
+      val marginScore = minMax(s.avgMargin, minM, maxM)
+      val finalScore = (visitorScore + marginScore) / 2.0
+      (s, finalScore)
+    }
+
+    val (bestStat, bestScore) = scored.maxBy {case(s, score)=> (score, s.totalVisitors, s.avgMargin)}
+    HotelProfitResult(bestStat.name, bestStat.country, bestStat.city, bestStat.totalVisitors, bestStat.avgMargin, bestScore)
   override def printResult(result: HotelProfitResult): Unit =
     println(f"3. Most Profitable Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity}" +
-      f" with a total profit of ${result.totalHotelProfit}%.2f with ${result.totalHotelVisitors} visitors")
+      f" with a total visitors of ${result.totalHotelVisitors}%d  and avgerage margin of ${result.avgProfitMargin}%.4f with final score of ${result.finalScore}%.4f")
 
 object Main extends App:
   val filePath = "data/Hotel_Dataset.csv"
