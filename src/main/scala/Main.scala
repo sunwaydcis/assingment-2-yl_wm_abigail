@@ -117,7 +117,7 @@ case class HotelProfitResult(
 class MostBookedCountryQuestion extends AnalysisQuestion[CountryBookingResult]:
   override val name: String = "Most Booked Country"
   override def compute(bookings: Seq[Booking]): CountryBookingResult =
-    val grouped: Map[String, Seq[Booking]] = bookings.groupBy(_.originCountry)
+    val grouped: Map[String, Seq[Booking]] = bookings.groupBy(_.destinationCountry)
     val (country, bookingsForCountry) =
       grouped.maxBy{case(_, bs) => bs.size}
     CountryBookingResult(country, bookingsForCountry.size)
@@ -199,7 +199,7 @@ class MostProfitableHotelQuestion extends AnalysisQuestion[HotelProfitResult]:
     HotelProfitResult(bestStat.name, bestStat.country, bestStat.city, bestStat.totalVisitors, bestStat.avgMargin, bestScore)
   override def printResult(result: HotelProfitResult): Unit =
     println(f"3. Most Profitable Hotel: ${result.hotelName}, ${result.destinationCountry}, ${result.destinationCity}" +
-      f" with a total visitors of ${result.totalHotelVisitors}%d  and avgerage margin of ${result.avgProfitMargin}%.4f with final score of ${result.finalScore}%.4f")
+      f" with a total visitors of ${result.totalHotelVisitors}%d and average profit margin of ${result.avgProfitMargin}%.4f with final score of ${result.finalScore}%.4f")
 
 object Main extends App:
   val filePath = "data/Hotel_Dataset.csv"
